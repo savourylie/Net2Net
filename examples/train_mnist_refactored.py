@@ -20,6 +20,7 @@ class Net(nn.Module):
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, 10)
+        print(self)
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
@@ -28,7 +29,8 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x)
+
+        return F.log_softmax(x, dim=1)
 
     def net2net_wider(self):
         self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01)
@@ -73,8 +75,8 @@ def train(epoch, train_loader):
 
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.data.item()))
 
 
 def test(test_loader):
@@ -87,9 +89,9 @@ def test(test_loader):
         if args.cuda:
             data, target = data.cuda(), target.cuda()
 
-        data, target = Variable(data, volatile=True), Variable(target)
+        data, target = Variable(data), Variable(target)
         output = model(data)
-        test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
+        test_loss += F.nll_loss(output, target, size_average=False).data.item() # sum up batch loss
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 
@@ -239,8 +241,8 @@ if __name__ == '__main__':
     #     wider_deeper_teacher_accu = test(test_loader)
 
 
-    print(" -> Teacher:\t{}".format(teacher_accu))
-    print(" -> Wider model:\t{}".format(wider_accu))
+    print(" -> {:<15}{}%".format('Teacher:', teacher_accu))
+    print(" -> {:<15}{}%".format('Wider model:', wider_accu))
     # print(" -> Deeper-Wider model:\t{}".format(deeper_accu))
     # print(" -> Wider teacher:\t{}".format(wider_teacher_accu))
     # print(" -> Deeper-Wider teacher:\t{}".format(wider_deeper_teacher_accu))
