@@ -165,7 +165,6 @@ if __name__ == '__main__':
         train(epoch, train_loader)
         teacher_accu = test(test_loader)
 
-
     # wider student training
     print("\n\n > Wider Student training ... ")
     print("")
@@ -185,64 +184,64 @@ if __name__ == '__main__':
         wider_accu = test(test_loader)
 
 
-    # wider + deeper student training
-    print("\n\n > Wider+Deeper Student training ... ")
-    print("")
-    model_ = Net()
-    model_ = copy.deepcopy(model)
+    # # wider + deeper student training
+    # print("\n\n > Wider+Deeper Student training ... ")
+    # print("")
+    # model_ = Net()
+    # model_ = copy.deepcopy(model)
 
-    del model
-    model = model_
-    model.net2net_deeper()
+    # del model
+    # model = model_
+    # model.net2net_deeper()
 
-    if args.cuda:
-        model.cuda()
+    # if args.cuda:
+    #     model.cuda()
 
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    for epoch in range(1, args.epochs + 1):
-        train(epoch, train_loader)
-        deeper_accu = test(test_loader)
-
-
-    # wider teacher training
-    print("\n\n > Wider teacher training ... ")
-    print("")
-    model_ = Net()
-
-    del model
-    model = model_
-    model.define_wider()
-
-    if args.cuda:
-        model.cuda()
-
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    for epoch in range(1, 2*(args.epochs) + 1):
-        train(epoch, train_loader)
-        wider_teacher_accu = test(test_loader)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    # for epoch in range(1, args.epochs + 1):
+    #     train(epoch, train_loader)
+    #     deeper_accu = test(test_loader)
 
 
-    # wider deeper teacher training
-    print("\n\n > Wider+Deeper teacher training ... ")
-    print("")
-    model_ = Net()
+    # # wider teacher training
+    # print("\n\n > Wider teacher training ... ")
+    # print("")
+    # model_ = Net()
 
-    del model
-    model = model_
-    model.define_wider_deeper()
+    # del model
+    # model = model_
+    # model.define_wider()
 
-    if args.cuda:
-        model.cuda()
+    # if args.cuda:
+    #     model.cuda()
 
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    for epoch in range(1, 3*(args.epochs) + 1):
-        train(epoch, train_loader)
-        wider_deeper_teacher_accu = test(test_loader)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    # for epoch in range(1, 2*(args.epochs) + 1):
+    #     train(epoch, train_loader)
+    #     wider_teacher_accu = test(test_loader)
+
+
+    # # wider deeper teacher training
+    # print("\n\n > Wider+Deeper teacher training ... ")
+    # print("")
+    # model_ = Net()
+
+    # del model
+    # model = model_
+    # model.define_wider_deeper()
+
+    # if args.cuda:
+    #     model.cuda()
+
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    # for epoch in range(1, 3*(args.epochs) + 1):
+    #     train(epoch, train_loader)
+    #     wider_deeper_teacher_accu = test(test_loader)
 
 
     print(" -> Teacher:\t{}".format(teacher_accu))
     print(" -> Wider model:\t{}".format(wider_accu))
-    print(" -> Deeper-Wider model:\t{}".format(deeper_accu))
-    print(" -> Wider teacher:\t{}".format(wider_teacher_accu))
-    print(" -> Deeper-Wider teacher:\t{}".format(wider_deeper_teacher_accu))
+    # print(" -> Deeper-Wider model:\t{}".format(deeper_accu))
+    # print(" -> Wider teacher:\t{}".format(wider_teacher_accu))
+    # print(" -> Deeper-Wider teacher:\t{}".format(wider_deeper_teacher_accu))
 
