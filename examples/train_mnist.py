@@ -73,8 +73,8 @@ class Net(nn.Module):
         return F.log_softmax(x)
 
     def net2net_wider(self):
-        self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise_var=0.01)
-        self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise_var=0.01)
+        self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01)
+        self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01)
         print(self)
 
     def net2net_deeper(self):
@@ -157,7 +157,10 @@ model_ = copy.deepcopy(model)
 del model
 model = model_
 model.net2net_wider()
-model.cuda()
+
+if args.cuda:
+    model.cuda()
+
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 for epoch in range(1, args.epochs + 1):
     train(epoch)
@@ -172,7 +175,10 @@ model_ = copy.deepcopy(model)
 del model
 model = model_
 model.net2net_deeper()
-model.cuda()
+
+if args.cuda:
+    model.cuda()
+
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 for epoch in range(1, args.epochs + 1):
     train(epoch)
@@ -186,7 +192,10 @@ model_ = Net()
 del model
 model = model_
 model.define_wider()
-model.cuda()
+
+if args.cuda:
+    model.cuda()
+
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 for epoch in range(1, 2*(args.epochs) + 1):
     train(epoch)
@@ -200,7 +209,10 @@ model_ = Net()
 del model
 model = model_
 model.define_wider_deeper()
-model.cuda()
+
+if args.cuda:
+    model.cuda()
+
 optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 for epoch in range(1, 3*(args.epochs) + 1):
     train(epoch)
