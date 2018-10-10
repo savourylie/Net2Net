@@ -54,7 +54,6 @@ class Net(nn.Module):
         self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=False, random_init=False)
         # self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01, random_init=True)
         # self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01, random_init=True)
-        print(self)
 
     def net2net_deeper(self):
         s = deeper(self.conv1, nn.ReLU, bnorm_flag=False)
@@ -97,7 +96,7 @@ def train(epoch, train_loader):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.data.item()))
 
-def test(test_loader):
+def test(model, test_loader):
     model.eval()
 
     test_loss = 0
@@ -115,7 +114,7 @@ def test(test_loader):
 
     test_loss /= len(test_loader.dataset)
 
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(
+    print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
         test_loss, correct, len(test_loader.dataset),
         (100. * correct.item()) / len(test_loader.dataset)))
 
@@ -171,103 +170,127 @@ if __name__ == '__main__':
                        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-    # Set up model
-    model = Net()
+    loss_diff_list = []
+    worsened_count = 0
 
-    if args.cuda:
-        model.cuda()
+    # Function-perserving experiment
+    num_exp = 200
+    for i in range(num_exp):
+        print("=====Exp {}=====".format(i + 1))
+        # Set up model
+        model = Net()
 
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        if args.cuda:
+            model.cuda()
 
-    # Start training
-    print("\n\n > Teacher training ... ")
-    print("")
-    # treacher training
-    for epoch in range(1, args.epochs + 1):
-        train(epoch, train_loader)
-        teacher_accu = test(test_loader)
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
-    # wider student training
-    print("\n\n > Wider Student training ... ")
-    print("")
-    model_ = Net()
-    model_ = copy.deepcopy(model)
+        # Start training
+        print("\n\n > Teacher training ... ")
+        print("")
+        # treacher training
+        for epoch in range(1, args.epochs + 1):
+            train(epoch, train_loader)
+            teacher_accu = test(model, test_loader)
+            print("")
 
-    del model
-    model = model_
-    model.net2net_wider()
+        # wider student training
+        print("\n\n > Wider Student training ... ")
+        print("")
+        print("Comapring the initial student loss with final teacher loss:")
+        print("Teacher net:")
+        teacher_accu = test(model, test_loader)
+        print("")
 
-    if args.cuda:
-        model.cuda()
+        # model_ = Net()
+        model_ = copy.deepcopy(model)
 
-    print("Comapring the initial student loss with final teacher loss:")
-    wider_accu = test(test_loader)
+        del model
+        model = model_
+        model.net2net_wider()
+        
+        if args.cuda:
+            model.cuda()
 
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    for epoch in range(1, args.epochs + 1):
-        train(epoch, train_loader)
-        wider_accu = test(test_loader)
+        print("Student net:")    
+        wider_accu = test(model, test_loader)
 
+        # Log function-perserving tolerance level
+        loss_diff_list.append(teacher_accu - wider_accu)
 
-    # # wider + deeper student training
-    # print("\n\n > Wider+Deeper Student training ... ")
-    # print("")
-    # model_ = Net()
-    # model_ = copy.deepcopy(model)
-
-    # del model
-    # model = model_
-    # model.net2net_deeper()
-
-    # if args.cuda:
-    #     model.cuda()
-
-    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    # for epoch in range(1, args.epochs + 1):
-    #     train(epoch, train_loader)
-    #     deeper_accu = test(test_loader)
+        if wider_accu > teacher_accu:
+            worsened_count += 1
 
 
-    # # wider teacher training
-    # print("\n\n > Wider teacher training ... ")
-    # print("")
-    # model_ = Net()
+        print(model)
 
-    # del model
-    # model = model_
-    # model.define_wider()
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        for epoch in range(1, args.epochs + 1):
+            train(epoch, train_loader)
+            wider_accu = test(model, test_loader)
+            print("")
 
-    # if args.cuda:
-    #     model.cuda()
+        # # wider + deeper student training
+        # print("\n\n > Wider+Deeper Student training ... ")
+        # print("")
+        # model_ = Net()
+        # model_ = copy.deepcopy(model)
 
-    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    # for epoch in range(1, 2*(args.epochs) + 1):
-    #     train(epoch, train_loader)
-    #     wider_teacher_accu = test(test_loader)
+        # del model
+        # model = model_
+        # model.net2net_deeper()
 
+        # if args.cuda:
+        #     model.cuda()
 
-    # # wider deeper teacher training
-    # print("\n\n > Wider+Deeper teacher training ... ")
-    # print("")
-    # model_ = Net()
-
-    # del model
-    # model = model_
-    # model.define_wider_deeper()
-
-    # if args.cuda:
-    #     model.cuda()
-
-    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    # for epoch in range(1, 3*(args.epochs) + 1):
-    #     train(epoch, train_loader)
-    #     wider_deeper_teacher_accu = test(test_loader)
+        # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        # for epoch in range(1, args.epochs + 1):
+        #     train(epoch, train_loader)
+        #     deeper_accu = test(test_loader)
 
 
-    print(" -> {:<15}{}%".format('Teacher:', teacher_accu))
-    print(" -> {:<15}{}%".format('Wider model:', wider_accu))
-    # print(" -> Deeper-Wider model:\t{}".format(deeper_accu))
-    # print(" -> Wider teacher:\t{}".format(wider_teacher_accu))
-    # print(" -> Deeper-Wider teacher:\t{}".format(wider_deeper_teacher_accu))
-    print("Training took {} seconds.".format(time.time() - start_time))
+        # # wider teacher training
+        # print("\n\n > Wider teacher training ... ")
+        # print("")
+        # model_ = Net()
 
+        # del model
+        # model = model_
+        # model.define_wider()
+
+        # if args.cuda:
+        #     model.cuda()
+
+        # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        # for epoch in range(1, 2*(args.epochs) + 1):
+        #     train(epoch, train_loader)
+        #     wider_teacher_accu = test(test_loader)
+
+
+        # # wider deeper teacher training
+        # print("\n\n > Wider+Deeper teacher training ... ")
+        # print("")
+        # model_ = Net()
+
+        # del model
+        # model = model_
+        # model.define_wider_deeper()
+
+        # if args.cuda:
+        #     model.cuda()
+
+        # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        # for epoch in range(1, 3*(args.epochs) + 1):
+        #     train(epoch, train_loader)
+        #     wider_deeper_teacher_accu = test(test_loader)
+
+
+        print(" -> {:<15}{}%".format('Teacher:', teacher_accu))
+        print(" -> {:<15}{}%".format('Wider model:', wider_accu))
+        # print(" -> Deeper-Wider model:\t{}".format(deeper_accu))
+        # print(" -> Wider teacher:\t{}".format(wider_teacher_accu))
+        # print(" -> Deeper-Wider teacher:\t{}".format(wider_deeper_teacher_accu))
+
+    print("\nTransfer loss diff mean: {}".format(np.array(loss_diff_list).mean()))
+    print("Transfer loss diff std: {}".format(np.array(loss_diff_list).std()))
+    print("\nTraining took {} seconds.".format(time.time() - start_time))
