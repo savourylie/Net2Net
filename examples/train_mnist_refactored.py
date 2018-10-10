@@ -22,7 +22,21 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(50, 10)
         print(self)
 
+        print("Conv1 name: {}".format(self.conv1.__class__.__name__))
+        print("Conv1 weights shape: {}".format(self.conv1.weight.data.size()))
+        print("Conv1 bias shape: {}".format(self.conv1.bias.data.size()))
+        print("Conv2 name: {}".format(self.conv2.__class__.__name__))
+        print("Conv2 weights shape: {}".format(self.conv2.weight.data.size()))
+        print("Conv2 bias shape: {}".format(self.conv2.bias.data.size()))
+        print("FC1 name: {}".format(self.fc1.__class__.__name__))
+        print("FC1 weights shape: {}".format(self.fc1.weight.data.size()))
+        print("FC1 bias shape: {}".format(self.fc1.bias.data.size()))
+        print("FC2 name: {}".format(self.fc2.__class__.__name__))
+        print("FC2 weights shape: {}".format(self.fc2.weight.data.size()))
+        print("FC2 bias shape: {}".format(self.fc2.bias.data.size()))
+
     def forward(self, x):
+        # print(x.size())
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
@@ -33,8 +47,8 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
     def net2net_wider(self):
-        self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01)
-        self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01)
+        self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01, random_init=False)
+        self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01, random_init=False)
         print(self)
 
     def net2net_deeper(self):
@@ -77,7 +91,6 @@ def train(epoch, train_loader):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.data.item()))
-
 
 def test(test_loader):
     model.eval()
