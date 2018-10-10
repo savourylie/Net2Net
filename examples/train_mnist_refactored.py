@@ -10,6 +10,7 @@ import sys
 sys.path.append('../')
 from net2net import *
 import copy
+import time
 
 
 class Net(nn.Module):
@@ -47,8 +48,12 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
     def net2net_wider(self):
-        self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01, random_init=False)
-        self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01, random_init=False)
+        # self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01, random_init=False)
+        # self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01, random_init=False)
+        self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=False, random_init=False)
+        self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=False, random_init=False)
+        # self.conv1, self.conv2, _ = wider(self.conv1, self.conv2, 15, noise=0.01, random_init=True)
+        # self.conv2, self.fc1, _ = wider(self.conv2, self.fc1, 30, noise=0.01, random_init=True)
         print(self)
 
     def net2net_deeper(self):
@@ -110,13 +115,15 @@ def test(test_loader):
 
     test_loss /= len(test_loader.dataset)
 
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(
         test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+        (100. * correct.item()) / len(test_loader.dataset)))
 
-    return 100. * correct / len(test_loader.dataset)
+    return (100. * correct.item()) / len(test_loader.dataset)
 
 if __name__ == '__main__':
+    start_time = time.time()
+
     # Training settings (terminal arguments)
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
@@ -193,6 +200,9 @@ if __name__ == '__main__':
     if args.cuda:
         model.cuda()
 
+    print("Comapring the initial student loss with final teacher loss:")
+    wider_accu = test(test_loader)
+
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     for epoch in range(1, args.epochs + 1):
         train(epoch, train_loader)
@@ -259,4 +269,5 @@ if __name__ == '__main__':
     # print(" -> Deeper-Wider model:\t{}".format(deeper_accu))
     # print(" -> Wider teacher:\t{}".format(wider_teacher_accu))
     # print(" -> Deeper-Wider teacher:\t{}".format(wider_deeper_teacher_accu))
+    print("Training took {} seconds.".format(time.time() - start_time))
 
