@@ -171,10 +171,10 @@ if __name__ == '__main__':
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     loss_diff_list = []
-    worsened_count = 0
+    worsened_diff_list = []
 
     # Function-perserving experiment
-    num_exp = 200
+    num_exp = 400
     for i in range(num_exp):
         print("=====Exp {}=====".format(i + 1))
         # Set up model
@@ -219,8 +219,7 @@ if __name__ == '__main__':
         loss_diff_list.append(teacher_accu - wider_accu)
 
         if wider_accu > teacher_accu:
-            worsened_count += 1
-
+            worsened_diff_list.append(wider_accu - teacher_accu)
 
         print(model)
 
@@ -293,4 +292,8 @@ if __name__ == '__main__':
 
     print("\nTransfer loss diff mean: {}".format(np.array(loss_diff_list).mean()))
     print("Transfer loss diff std: {}".format(np.array(loss_diff_list).std()))
+    print("")
+    print("Deterioration: {0} / 200 ({1})".format(len(worsened_diff_list), len(worsened_diff_list)/200))
+    print("Mean: {0}, Std: {1}".format(np.array(worsened_diff_list).mean(), np.array(worsened_diff_list).std()))
+    print("")
     print("\nTraining took {} seconds.".format(time.time() - start_time))
