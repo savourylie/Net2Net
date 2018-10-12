@@ -10,24 +10,21 @@ from copy import deepcopy
 class Net2Net(nn.Module):
     def __init__(self):
         super().__init__()
-        # self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        # self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        # self.conv2_drop = nn.Dropout2d()
-        # self.fc1 = nn.Linear(8000, 50)
-        # self.fc2 = nn.Linear(50, 2)
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(320, 50)
+        self.fc2 = nn.Linear(50, 2)
 
-        self.conv2 = nn.Conv2d(1, 2, kernel_size=5)
-        self.fc1 = nn.Linear(18, 2)
+        # self.conv2 = nn.Conv2d(1, 2, kernel_size=5)
+        # self.fc1 = nn.Linear(18, 2)
 
     def forward(self, x):
-        # x = self.conv1(x)
-        x = self.conv2(x)
-        # print("Activation (conv)")
-        # print(x)
-        x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
-        x = self.fc1(x)
+        # x = self.conv2(x)
+        # x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
+        # x = self.fc1(x)
 
-        return x
+        # return x
         # x = self.conv1(x)
         # x = self.conv2(x)
         # x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
@@ -37,14 +34,14 @@ class Net2Net(nn.Module):
 
         # return x
 
-        # x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        # x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        # x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
-        # x = F.relu(self.fc1(x))
-        # x = F.dropout(x, training=self.training)
-        # x = self.fc2(x)
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
+        x = F.relu(self.fc1(x))
+        x = F.dropout(x, training=self.training)
+        x = self.fc2(x)
 
-        # return F.log_softmax(x, dim=1)
+        return F.log_softmax(x, dim=1)
 
     def make_wider(self, new_width):
         # self.conv1, self.conv2 = Net2Net._widen(self.conv1, self.conv2, new_width)
@@ -126,10 +123,10 @@ class Net2Net(nn.Module):
                 # print("New shape:")
                 # print(layer2_num_output_units, layer1_num_output_units, feature_map_side_length, feature_map_side_length)
 
-                weight2_reshaped = weight2_widened.view(layer2_num_output_units, layer1_num_output_units, \
+                weight2_reshaped = weight2_widened.reshape(layer2_num_output_units, layer1_num_output_units, \
                                   feature_map_side_length, feature_map_side_length) 
-                weight2_widened = weight2_widened.view(layer2_num_output_units, layer1_num_output_units, \
-                                  feature_map_side_length, feature_map_side_length)
+                weight2_widened = weight2_widened.reshape(layer2_num_output_units, layer1_num_output_units, \
+                                  feature_map_side_length, feature_map_side_length).clone()
 
                 # Widen weight2
                 weight2_widened.resize_(layer2_num_output_units, new_width, feature_map_side_length, feature_map_side_length)
@@ -137,8 +134,13 @@ class Net2Net(nn.Module):
                 # Intialize the extended parts with zeros
                 weight2_widened[:, old_width:new_width, :, :] = 0
 
-                print(weight2_reshaped)
-                print(weight2_widened)
+                # print("Weight 2:")
+                # print(weight2.size())
+                # print(weight2)
+                # print("Weight 2 reshaped:")
+                # print(weight2_reshaped.size())
+                # print(weight2_reshaped)
+                # print(weight2_widened)
 
                 for j in range(new_width):
                     weight2_widened[:, j, :, :] = weight2_reshaped[:, g_mapping[j], :, :] / g_counter[g_mapping[j]]
@@ -161,24 +163,24 @@ class Net2Net(nn.Module):
 
 
 if __name__ == '__main__':
-    x_data = torch.rand((1, 1, 7, 7), dtype=torch.float64)
+    x_data = torch.rand((64, 1, 28, 28))
 
     model = Net2Net()
     print("\nTeacherNet architecture:")
     print(model)
     print("")
     model.eval()
-    teacher_result = model.double()(x_data).detach().numpy()
-    print(teacher_result)
-    print(teacher_result.shape)
+    teacher_result = model(x_data).detach().numpy()
+    # print(teacher_result)
+    # print(teacher_result.shape)
 
     model_wider = deepcopy(model)
-    model_wider.make_wider(6)
+    model_wider.make_wider(1000)
     print("StudentNet architecture:")
     print(model_wider)
     print("")
     model_wider.eval()
     student_result = model_wider(x_data).detach().numpy()
-    print(student_result)
-    print(student_result.shape)
+    # print(student_result)
+    # print(student_result.shape)
     print(np.allclose(teacher_result, student_result))
