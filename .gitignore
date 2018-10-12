@@ -106,3 +106,6 @@ venv.bak/
 
 # Server info
 sftp-config.json
+
+# MISC
+.DS_Store
