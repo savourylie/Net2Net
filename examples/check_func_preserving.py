@@ -14,42 +14,28 @@ class Net2Net(nn.Module):
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 2)
-
-        # self.conv2 = nn.Conv2d(1, 2, kernel_size=5)
-        # self.fc1 = nn.Linear(18, 2)
+        self.fc2 = nn.Linear(50, 20)
+        self.fc3 = nn.Linear(20, 2)
 
     def forward(self, x):
-        # x = self.conv2(x)
-        # x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
-        # x = self.fc1(x)
-
-        # return x
-        # x = self.conv1(x)
-        # x = self.conv2(x)
-        # x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
-        # x = F.relu(self.fc1(x))
-        # x = F.dropout(x, training=self.training)
-        # x = self.fc2(x)
-
-        # return x
-
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, x.size(1)*x.size(2)*x.size(3))
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
+        x = self.fc3(x)
 
         return F.log_softmax(x, dim=1)
 
     def make_wider(self, new_width):
         # self.conv1, self.conv2 = Net2Net._widen(self.conv1, self.conv2, new_width)
-        self.conv2, self.fc1 = Net2Net._widen(self.conv2, self.fc1, new_width)
+        # self.conv2, self.fc1 = Net2Net._widen(self.conv2, self.fc1, new_width)
+        self.fc2, self.fc3 = Net2Net._widen(self.fc2, self.fc3, new_width)
 
 
     @staticmethod
-    def _widen(layer1, layer2, new_width):
+    def _widen(layer1, layer2, new_width, batchnorm=None):
         weight1, bias1 = layer1.weight.data, layer1.bias.data
         weight2 = layer2.weight.data
 
@@ -65,13 +51,14 @@ class Net2Net(nn.Module):
         if layer1_num_output_units >= new_width:        
             raise ValueError("New width has to be larger than current width.")
 
+        weight1_widened, bias1_widened = weight1.clone(), bias1.clone()
+        weight2_widened = weight2.clone()
+
         if "Conv" in layer1.__class__.__name__: # When current layer is conv
             # Check current weight rank
             assert weight1.dim() == 4
             w1_kh_size, w1_kw_size = weight1.size(2), weight1.size(3)
-            weight1_widened, bias1_widened = weight1.clone(), bias1.clone()
-            weight2_widened = weight2.clone()
-
+            
             # Widen weight1/bias1
             weight1_widened.resize_(new_width, layer1_num_input_units, w1_kh_size, w1_kw_size)
             bias1_widened.resize_(new_width)
@@ -113,15 +100,6 @@ class Net2Net(nn.Module):
                 # Get feature map size and side length
                 feature_map_size = layer2_num_input_units // layer1_num_output_units
                 feature_map_side_length = int(np.sqrt(feature_map_size))
-                # print("Number of input units (layer2): {}".format(layer2_num_input_units))
-                # print("Number of output units (layer1): {}".format(layer1_num_output_units))
-                # print("Feature map size: {}".format(feature_map_size))
-
-                # Reshape weight 2 to calculate the compensation factor more easily
-                # print("Weight 2 widened shape:")
-                # print(weight2_widened.size())
-                # print("New shape:")
-                # print(layer2_num_output_units, layer1_num_output_units, feature_map_side_length, feature_map_side_length)
 
                 weight2_reshaped = weight2_widened.reshape(layer2_num_output_units, layer1_num_output_units, \
                                   feature_map_side_length, feature_map_side_length) 
@@ -133,14 +111,6 @@ class Net2Net(nn.Module):
 
                 # Intialize the extended parts with zeros
                 weight2_widened[:, old_width:new_width, :, :] = 0
-
-                # print("Weight 2:")
-                # print(weight2.size())
-                # print(weight2)
-                # print("Weight 2 reshaped:")
-                # print(weight2_reshaped.size())
-                # print(weight2_reshaped)
-                # print(weight2_widened)
 
                 for j in range(new_width):
                     weight2_widened[:, j, :, :] = weight2_reshaped[:, g_mapping[j], :, :] / g_counter[g_mapping[j]]
@@ -158,8 +128,36 @@ class Net2Net(nn.Module):
             else:
                 raise TypeError("Layer 2 has to be either convolutional or linear.")
 
-        else: # When current layer is linear 
-            raise NotImplementedError
+        elif "Linear" in layer1.__class__.__name__: # When layer 1/layer 2 are both linear 
+            assert weight1.dim() == 2 and weight2.dim() == 2
+
+            # Widen weight1/bias1
+            weight1_widened.resize_(new_width, layer1_num_input_units)
+            bias1_widened.resize_(new_width)
+            weight2_widened.resize_(layer2_num_output_units, new_width)
+
+            # Intialize the extended parts with zeros
+            weight1_widened[old_width:new_width, :] = 0
+            weight2_widened[:, old_width:new_width] = 0
+
+            for j in range(old_width, new_width):
+                weight1_widened[j, :] = weight1[g_mapping[j], :]
+                bias1_widened[j] = bias1[g_mapping[j]]
+
+            for j in range(new_width):
+                weight2_widened[:, j] = weight2[:, g_mapping[j]] / g_counter[g_mapping[j]]
+            
+            # Update weights for layer 1/layer 2
+            layer1.weight.data, layer1.bias.data = weight1_widened, bias1_widened
+            layer1.out_features = new_width
+
+            layer2.weight.data = weight2_widened
+            layer2.in_features = new_width
+
+            return layer1, layer2
+
+        else:
+            raise ValueError("Layer type not supported.")
 
 
 if __name__ == '__main__':
